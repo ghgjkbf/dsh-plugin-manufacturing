@@ -1,6 +1,48 @@
-# 20 条实测坑位
+# 22 条实测坑位
 
 每条都来自一次真实交付。标 `[已核实]` 的附证据；标 `[待验证]` 的只作线索。
+
+## 0. 技能目录被 patch 层覆盖（写插件前必须先查）
+
+**0. 你自己那层 patch 可能把官方插件技能挤掉了** `[已核实，踩过整场]`
+
+症状：会话里明明有 `cordis-plugin-development` 这个技能，`skill` 工具却不知道它；`skill cordis-plugin-development` 是盲调——命中与否全看运气。整场插件开发期间我**一次都没调用过官方技能**，直到事后才发现。
+
+机制（`~/.dsh/cordis.patch.yml` × `dsh-web-app/presets/cordis.patch.yml`）：
+
+- preset `cordis` 用 `skill-filesystem` 行把**官方技能目录**接进来，靠的是 `customSkillDirs`：
+  ```yaml
+  customSkillDirs:
+    - !!js ....join(dirname(createRequire(baseUrl).resolve('@deepseek-ai/dsh-agent-preset/package.json')), 'skills')
+  ```
+- 你自己的 `~/.dsh/cordis.patch.yml` 里写了**同一个 row id** `skill-filesystem`，而补丁层是**按 row id 后者覆盖前者**。
+- 于是 preset 的 `customSkillDirs`（官方三件套）被整条替换掉，只剩你的两个目录：
+  ```yaml
+  customSkillDirs:
+    - '<HUB>\skills'          # 你的聚合库
+    - '<HOME>\.agents\skills' # npx skills add -g 的下载落点
+  ```
+
+**证据**：本会话（2314 帧 / 4054 事件**全解**）里 `cordis-plugin-development` 首次出现是 event **#3360**，类型 `tool/result`——那是事后扫文件系统的输出，不是目录注入。此前 **0 次**；真实的 `skill` 工具调用全场**仅 1 次**。而我确实调过别的技能，说明 `skill` 工具本身是通的，缺的就是官方那几个。
+
+**注意顺序**：`includeDefaultRoots` 只补 `project/.dsh/skills`、`project/.agents/skills`、`~/.dsh/skills`、`~/.agents/skills` 与 `bundledSkillDir`（`dsh-skill-filesystem/lib/index.js` L150-188），**不含 preset 目录**。而 `bundledSkillDir` 默认读环境变量 `DSH_BUNDLED_SKILL_DIR`——本机三级作用域**全为空**，所以那条兜底也没接上。
+
+**做法**：在你那层 patch 的 `skill-filesystem` 行里**把 preset 目录补进去**，而不是只写自己的：
+
+```yaml
+- id: skill-filesystem
+  disabled: false
+  config:
+    includeDefaultRoots: true
+    customSkillDirs:
+      - !!js process.getBuiltinModule('node:path').join(process.getBuiltinModule('node:path').dirname(process.getBuiltinModule('node:module').createRequire(baseUrl).resolve('@deepseek-ai/dsh-agent-preset/package.json')), 'skills')
+      - '<HUB>\skills'
+      - '<HOME>\.agents\skills'
+```
+
+**验证方式**（不必重启 GUI）：`dsh headless "<问一句技能目录里有哪些技能>"` 会在独立进程里启动一套配置并回话，比 dump 可靠——`--dump-config` 会把 `!!js` 表达式**原样打印源码**，既证明不了求值成功、也看不出最终目录。
+
+**通用教训**：patch 层按 **row id** 覆盖，不是合并。你在自己那层写任何与上游同名的 row，都是在**整条替换**它。写插件、改配置前先查「这条 row 上游有没有」，有就别裸写。
 
 ## A. Manifest 与包形态
 

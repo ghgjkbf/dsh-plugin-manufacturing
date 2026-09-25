@@ -86,6 +86,10 @@ const pits = readFileSync(join(root, 'references/pitfalls.md'), 'utf8');
 const auth = readFileSync(join(root, 'references/authoring.md'), 'utf8');
 const ver = readFileSync(join(root, 'references/verification.md'), 'utf8');
 
+check(
+  'warns that a same-id patch row replaces (not merges) the upstream row',
+  /按 row id|row id.*覆盖|整条替换/.test(pits + md),
+);
 check('teaches the real manifest contract', /dsh\.bundle/.test(pits) && /dsh\.client/.test(pits));
 check('warns the invented field has zero consumers', /manifestVersion/.test(pits));
 check('teaches body-level theme tokens', /body/.test(pits) && /--dsw-alias/.test(pits));

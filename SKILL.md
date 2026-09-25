@@ -23,6 +23,8 @@ description: 造 dsh/cordis 插件全流程触发：探针定可行性→写码�
 
 ### 阶段 1：探针定可行性（写码之前）
 
+**第 0 步先验技能目录**：`skill cordis-plugin-development` 必须能加载。加载不到说明 patch 层把你的技能根覆盖了（见铁律 0），先修配置再开工——否则你会用「裸写」的方式重造一遍官方已经写好的规则。这不是假设：整场插件开发我都缺这个技能，代价是漏掉两条官方硬禁令，事后才发现。
+
 用只读探针回答「这条路成不成立」。**先设计再发现不可行是最大的浪费源**——一次交付里两个探针都给出否定答案，直接省掉整条错路。
 
 闸门：每个关键假设都有一个只读探针输出，且你不依赖未经探测的假设。
@@ -59,6 +61,7 @@ manifest 契约、两种安装方式、卸载后的遗留状态。见 `reference
 
 ## 六条铁律（都违反过，代价记在案）
 
+0. **先确认你的技能目录里真有官方技能。** 我犯过最贵的一次错：整场插件开发**一次都没调用过官方技能**，因为 `~/.dsh/cordis.patch.yml` 里我写的 `skill-filesystem` 行与 agent-preset 的**同一个 row id** 冲突，补丁层是**按 row id 整条覆盖、不是合并**，于是官方三件套被打出目录。判断方法：能调 `skill cordis-plugin-development` 且技能目录里列得出来，才算真有。详见 `references/pitfalls.md` 坑位 0。
 1. **不得 `require` 任何 Harness Client 包**（官方 `practices.md` L35）。我现在维护的参考插件违反此条 16 次（`primitives.Button` ×11 等）。`dsh.client.inject` 只排激活顺序，不是许可。后果：上游改版即崩，纯 JS 无类型检查，抛错会**清空你的槽位**（`slot entry crashed in '<slot>'`）。做法：把原语 markup/CSS/行为**抄进自己插件**并改类名前缀。
 2. **不得用新事件类型追加会话事件**（官方 `practices.md` L21）。`SessionEventMap` 是封闭接口，`ignorable: true` 是只读标记而 `Session.append()` 设不了它 ⇒ 会话下次拒绝打开。「写墓碑事件来遮蔽」这条路**是死的**；要遮蔽就用内核已有的 `compaction/prune`（`shadowedSeqs`/`shadowedRange`）或面层替换。
 3. **宿主改动必须重启进程；客户端改动刷新页面即可。** `lib/index.js` 进程启动时 `require` 一次，禁用/启用插件条目是空操作（Node ESM 缓存）。替换已装包需要重启加载新的模块世代。
