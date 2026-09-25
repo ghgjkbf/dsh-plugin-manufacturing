@@ -1,0 +1,10 @@
+# Nothing generated, nothing machine-specific, no credentials.
+node_modules/
+*.log
+shots/
+
+# Local editor state
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

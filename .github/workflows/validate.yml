@@ -1,0 +1,60 @@
+# Validates the skill on every push: frontmatter, description trigger window,
+# reference integrity, and the no-secrets / no-machine-paths gate.
+name: validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  skill:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['20', '22', '24']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Self-validation
+        run: node tools/validate.mjs .
+
+      - name: Layout is installable by the skills CLI
+        # The CLI discovers a skill at either <repo>/SKILL.md or
+        # <repo>/skills/<name>/SKILL.md. This repo uses the root form, which
+        # permits exactly one skill per repository.
+        run: |
+          test -f SKILL.md
+          name=$(sed -n 's/^name:[[:space:]]*//p' SKILL.md | head -1 | tr -d '\r')
+          dir=$(basename "$PWD")
+          if [ "$name" != "$dir" ]; then
+            echo "::error::frontmatter name '$name' does not match directory '$dir'"
+            exit 1
+          fi
+          echo "installable as: $name"
+
+      - name: No secrets or author paths committed
+        run: |
+          if grep -rnE 'gho_[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|dsh-auth-[A-Za-z0-9_-]{20,}|v1\.eyJ[A-Za-z0-9_-]{20,}|BEGIN [A-Z ]*PRIVATE KEY' \
+               --include='*.md' --include='*.mjs' --include='*.ps1' --include='*.yml' --include='*.json' . ; then
+            echo "::error::credential-shaped string committed"; exit 1
+          fi
+          if grep -rnE 'C:\\\\Users\\\\[A-Za-z]+|/Users/[A-Za-z]+/|/home/[A-Za-z]+/' \
+               --include='*.md' --include='*.mjs' --include='*.ps1' --include='*.yml' . ; then
+            echo "::error::absolute author path committed"; exit 1
+          fi
+          echo "clean"
+
+      - name: Every mjs file parses
+        run: |
+          for f in tools/*.mjs templates/*.mjs; do
+            node --check "$f" || exit 1
+          done
+          echo "all files parse"
