@@ -2,6 +2,7 @@
 node_modules/
 *.log
 shots/
+tmp/
 
 # Local editor state
 .vscode/

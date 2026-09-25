@@ -17,7 +17,7 @@ Select-String -Path (Get-ChildItem -Recurse -File -Include *.js,*.mjs,*.ps1,*.md
 
 ## 2. 可移植化（别人 clone 下来要能跑）
 
-本次有 15 个工具文件散布 `C:\Users\Administrator\...` 绝对路径，别人一行都跑不了。做法：
+本次有 15 个工具文件散布 `C:\Users\<you>\...` 这类绝对路径，别人一行都跑不了。做法：
 
 - 建 `tools/harness.mjs` 集中解析运行期路径：浏览器可执行文件、`puppeteer-core`、输出目录、GUI URL、cookie。**每个值都有环境变量覆盖**（`DSH_CHROME`、`DSH_PUPPETEER_CORE`、`DSH_SHOTS_DIR`、`DSH_URL`、`DSH_SESSIONS_DIR`、`DSH_HOME`）。
 - 用 `$PSScriptRoot` / `$env:` 把脚本里的绝对路径换掉，而不是写死。

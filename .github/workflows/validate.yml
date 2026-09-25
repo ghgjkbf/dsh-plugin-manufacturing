@@ -33,9 +33,8 @@ jobs:
         run: |
           test -f SKILL.md
           name=$(sed -n 's/^name:[[:space:]]*//p' SKILL.md | head -1 | tr -d '\r')
-          dir=$(basename "$PWD")
-          if [ "$name" != "$dir" ]; then
-            echo "::error::frontmatter name '$name' does not match directory '$dir'"
+          if [ "$name" != "dsh-plugin-manufacturing" ]; then
+            echo "::error::frontmatter name '$name' does not match the expected skill name"
             exit 1
           fi
           echo "installable as: $name"

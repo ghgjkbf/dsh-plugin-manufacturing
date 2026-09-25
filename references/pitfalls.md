@@ -16,21 +16,43 @@
 
 它列出的是"先物化哪些**客户端包**"，`arriveGraphRow` 会按它把每个包先造出来。`@deepseek-ai/dsh-client-ui-primitives` 是**种子**，不用列也能用。别照抄别的插件的 `inject`——`turn-rewind` 里写了已删除的 `settingsScope`，抄了就崩。
 
-**4. 客户端 chunk 名有格式要求** `[已核实]`
+**4. 客户端半边入口是 `exports["./client"]`，路径任意** `[已核实]`
 
-按需路由只接受 `/^client\.[A-Za-z0-9][A-Za-z0-9._-]*\.js$/`（L169，"Published package-local client chunk names accepted by the on-demand route"）。裸 `client.js` 不匹配。同时 `exports["./client"]` 必须存在，否则抛 `declares dsh.client but exports no "./client" bundle`。
+内核只要求该 subpath 存在，否则抛 `declares dsh.client but exports no "./client" bundle`（`clientExportOf`，接受字符串或 `{default: "…"}`）。文件名随意——官方 `templates/decoration/` 用的是裸 `client.js`。
 
-**5. 所有插件的客户端包走同一次 combo 请求** `[已核实]`
+**4b. `CLIENT_CHUNK` 只管按需路由，别把它当成全局命名限制** `[已核实，上一版写错过]`
 
-形态是 `/plugins/??<包A>/client.js,<包B>/client.js,…,&rev=<rev>`。实测这一条 URL 里一次性带了十几个插件的 client。推论：**一个插件的 `client.js` 语法错误可能影响整条 combo 的加载**——排查"我的插件没生效"时先看这条请求的状态码和数据完整性。
+`/^client\.[A-Za-z0-9][A-Za-z0-9._-]*\.js$/`（`dsh-client-modules/lib/index.js` L169）的注释写明是 **"Published package-local client chunk names accepted by the on-demand route"**。实测证据：真实页面 HTML 里所有插件用的都是**裸** `<pkg>/client.js`，包括本仓库的参考插件：
 
-**6. 探测插件资源必须用真实 URL，不能用猜的路径** `[已核实]`
+```
+plugins/??…,dsh-purge/client.js,dsh-session-deleter/client.js,dsh-pocket/client.js,…&rev=b7f08a33401f
+```
 
-必须与内核生成的 `chunkUrl` 逐字节一致，含真实 `rev`，且用 `??` combo 形式。用 `/plugins/<name>/client.js` 直接取会拿到**裸 404、无 content-type**——很容易误判成"插件坏了"。
+上一版本技能写成「裸 `client.js` 不匹配，文件名必须有第二段」——**错的**，混淆了 combo 路由与按需路由。教训：读到一条正则就去验证它守哪条路径，别从名字推断适用范围。
+
+**4c. 所有插件的客户端包走同一条 combo 请求** `[已核实]`
+
+形态 `/plugins/??<包A>/client.js,<包B>/client.js,…&rev=<rev>`。实测该请求一次带了 62 个 chunk（官方层）+ 13 个（第三方层）。推论：**一个插件的 `client.js` 语法错误可能影响整条 combo 的加载**——排查「我的插件没生效」时先看这条请求的状态码与完整性。
+
+**5. 探测插件资源必须用真实 URL** `[已核实]`
+
+必须与内核生成的 `chunkUrl` 逐字节一致，含真实 `rev` 与 `??` combo 形式。用猜的路径直接取会拿到**裸 404、无 content-type**——很容易误判成「插件坏了」。`rev` 在页面 HTML 的 `plugins/??…&rev=` 里，直接从那里取。（注意 HTML 里 `&` 被转义成 `&amp;`，解析时要还原。）
 
 **7. rev 由文件元数据算出来** `[已核实]`
 
 `artifactRevision(baseline)` = 对 `[mtimeMs, ctimeMs, size]` 做 `framedHash("plugin-artifact", …)`，取前 `HASH_REVISION_LENGTH = 12` 位（L162/L193）。所以改文件 → rev 变 → 客户端自动拿新版。**这也是客户端改动免重启的原因**。
+
+**7b. 不得 `require` 任何 Harness Client 包** `[已核实，官方明令，我违反过]`
+
+官方 `practices.md` §UI：`dsh.client.inject` 只排激活顺序，**不是**加载许可。参考插件 `dsh-session-deleter/lib/client.js` L25 违反此条，`primitives.*` 共 16 个调用点。它能跑，但那不是合规——上游改版会崩，且纯 JS 无类型检查，抛错会清空槽位（`slot entry crashed in '<slot>'`）。
+
+正确做法：把原语 markup/CSS/行为抄进自己插件、改类名前缀、只留 `--dsw-alias-*` token。细节见 `authoring.md` §2。
+
+**7c. 不得用新事件类型做「墓碑」** `[已核实，官方明令]`
+
+官方 `practices.md` §Stability 与内核一致：`SessionEventMap` 是**封闭接口**，`ignorable?: true` 是只读标记而运行期 `Session.append()` 设不了它 ⇒ 会话下次拒绝打开。
+
+实测 `SessionEventMap` 里已有 `compaction/prune`、`compaction/summary`，均带 `shadowedSeqs` / `shadowedRange` / `shadowedTokenCount`——**遮蔽早已是内核一等机制**。要遮蔽就用它，别自造墓碑类型。
 
 ## B. Slot 与 UI
 
