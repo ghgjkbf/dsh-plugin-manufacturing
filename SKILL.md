@@ -1,6 +1,6 @@
 ---
 name: dsh-plugin-manufacturing
-description: 造 dsh/cordis 插件全流程触发：探针定可行性→写码→真机验收→打包→开源；含 22 条实测坑位与官方规则冲突警告。写码细节以官方 cordis-plugin-development 为准。
+description: 造 dsh/cordis 插件全流程触发：探针定可行性→写码→真机验收→打包→开源；含 26 条实测坑位与官方规则冲突警告。写码细节以官方 cordis-plugin-development 为准。
 ---
 
 # dsh 插件制造全流程
@@ -74,7 +74,7 @@ manifest 契约、两种安装方式、卸载后的遗留状态。见 `reference
 | 任务 | 文件 |
 |---|---|
 | 官方「会被咬的规则」+ 必查清单（含我踩过的那颗雷） | `references/authoring.md` |
-| 22 条实测坑位（manifest / slot / 主题 / 事件 / 客户端路由 / Windows 文件系统） | `references/pitfalls.md` |
+| 26 条实测坑位（manifest / slot / 主题 / 事件 / 客户端路由 / Windows 文件系统） | `references/pitfalls.md` |
 | 真机可见性验收：断言什么、鉴权怎么过、重启 vs 刷新 | `references/verification.md` |
 | 包形态、manifest、安装、卸载遗留、README 清单 | `references/packaging.md` |
 | 开源前清洗与发布（含发布命令的三个陷阱） | `references/open-source.md` |

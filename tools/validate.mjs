@@ -110,6 +110,18 @@ check(
   'records that the bare client.js claim was previously wrong',
   /上一版写错|裸\s*`client\.js`\s*不匹配/.test(pits),
 );
+check(
+  'warns that a third-party plugin cannot open the shell Settings panel',
+  /selectPanel/.test(pits) && /sidebar\.panellist/.test(pits) && /settings\.launcher|shell 拥有/.test(pits),
+);
+check(
+  'warns that a swallowed error turns an entry point into a silent no-op',
+  /catch \{\}/.test(pits) && /静默|no-op/.test(pits),
+);
+check(
+  'warns that a t() key missing from a dictionary renders the literal key',
+  /dialog\.cancel/.test(pits) && /字面 key|字面的 key/.test(pits),
+);
 
 console.log(`\n${bad === 0 ? 'ALL CHECKS PASSED' : `${bad} CHECK(S) FAILED`}`);
 process.exit(bad === 0 ? 0 : 1);

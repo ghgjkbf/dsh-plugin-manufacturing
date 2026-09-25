@@ -1,4 +1,4 @@
-# 22 条实测坑位
+# 26 条实测坑位
 
 每条都来自一次真实交付。标 `[已核实]` 的附证据；标 `[待验证]` 的只作线索。
 
@@ -109,6 +109,36 @@ plugins/??…,dsh-purge/client.js,dsh-session-deleter/client.js,dsh-pocket/clien
 **10. 悬停才出现的入口不算可见** `[已核实]`
 
 真实反馈是「没有浮出」。以会话行为例：`...` 触发器只在鼠标移到**非当前**行时才有尺寸（静止 0×0，悬停后 16×16），**当前选中行根本没有该触发器**（实测 `{"text":"新会话","trigger":false}`）。只在悬停菜单里放入口 = 用户看不到。**交付可见性必须有不悬停也能看见的常驻入口。**
+
+**10b. 第三方插件打不开 shell 的 Settings 面板，别把入口指向它** `[已核实，用户报障]`
+
+现象：插件里两个「跳转管理页」按钮点了毫无反应（用户报「点击管理回收站和跳转管理页都无法正常跳转」）。
+
+根因不是笔误，是**设计错误**。`ctx.layout.selectPanel(id)` 只接受注册在 `sidebar.panellist` 槽里的 id（该槽 catalog 原文：*"Global panel icons. Each list id addresses the matching main panel"*）；实测该槽 occupants 只有 `plugins`、`dsh-market` —— **`"settings"` 不是合法 id**，调用**抛错**，而错误被 `try{...}catch{}` 吞掉 ⇒ 静默 no-op。
+
+而 Settings 面板本身是 **shell 拥有**的：`settings.section` 的 `declaredBy` 是 `sidebar.settings` 槽，开合状态是 `ui-settings-general` 组件内部的 `useState`，`openSettings` 只作为 props 向下传给 `settings.launcher` 的占用者。**全库 grep 确认没有任何客户端 Service 能让第三方插件打开它。**
+
+判定方法（写码前先查，别写完再试）：
+
+```
+cordis_inspect_query platform=client provider=Slots method=listSubTree  input={"root":"sidebar.panellist"}
+cordis_inspect_query platform=client provider=Slots method=listSubTree  input={"root":"sidebar.settings"}
+```
+
+看第一处 `occupants` 里有你要的 id 吗；看第二处 `declaredBy` 是不是 shell 的槽。**没有官方 open API 时，正确做法是渲染插件自己的 `shell.overlay` 覆盖层**，同一组件复用给 `settings.section`，两条路径共享一个 body 才不会漂移。可保留一次 `selectPanel("settings")` 作"万一将来注册了"的礼貌尝试，但**兜底必须是自己的覆盖层**——否则失败时按钮就是死的。
+
+配套铁律：**`catch {}` 前先问「这里抛错会怎样」。** 本插件同一函数里既有 `catch {}` 吞掉真实错误，又有 `async` 函数里被裸 `.catch(() => undefined)` 吞掉的 `ReferenceError`（前一版另一起事故）。纯工具函数**绝不裸 catch**——把编程错误变成"静默空结果"是最贵的 bug 类型。
+
+**10c. `t("key")` 引用了不存在的字典键 ⇒ 界面显示字面 key** `[已核实]`
+
+本次验收时发现对话框取消按钮渲染成 **`dialog.cancel`**（不是「取消」）。该 key 在 zh/en **两份字典里都不存在**，而调用点一直存在（`git show HEAD` 确认是**历史遗留、非本轮引入**）。静态扫描一次即得：
+
+```js
+// 每个 t("...") 的 key 必须在两份字典里都存在；顺带查同字典内重复键
+const used = new Set([...src.matchAll(/\bt\("([^"]+)"\)/g)].map(m => m[1]));
+```
+
+**扫描必须先把字典体按花括号切出来**：直接正则全文会把字典外的代码字面量也算成键（`? "timeout" : "network"` 会被误报成重复键），本次踩过。本插件已固化为 `tools/check-locale.mjs` 并接入 CI。
 
 **11. 主题 token 在 `body` 上** `[已核实]`
 

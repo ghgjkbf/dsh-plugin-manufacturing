@@ -2,7 +2,7 @@
 
 **造 DSH（DeepSeek harness）插件的全流程技能：从探针到开源。**
 
-官方技能 `cordis-plugin-development` 管「怎么写、怎么装」。本技能把它串成一条**六阶段流水线**，补上官方没覆盖的**交付、真机验收、开源**，并附 **22 条实测坑位**。
+官方技能 `cordis-plugin-development` 管「怎么写、怎么装」。本技能把它串成一条**六阶段流水线**，补上官方没覆盖的**交付、真机验收、开源**，并附 **26 条实测坑位**。
 
 A skill for the entire DSH plugin lifecycle: feasibility probes, authoring guardrails, real-browser acceptance, packaging, and open-source release.
 
@@ -38,7 +38,7 @@ A skill for the entire DSH plugin lifecycle: feasibility probes, authoring guard
 ```
 SKILL.md                    主入口：六阶段流水线、六条铁律、关键事实速查
 references/authoring.md     官方「会被咬的规则」按「何时咬到你」重排 + 必查清单
-references/pitfalls.md      22 条实测坑位（manifest/slot/主题/事件/客户端路由/Windows）
+references/pitfalls.md      26 条实测坑位（manifest/slot/主题/事件/客户端路由/Windows）
 references/verification.md  真机可见性验收：断言什么、鉴权怎么过、重启 vs 刷新
 references/packaging.md     包形态、manifest、安装、卸载遗留、README 清单
 references/open-source.md   开源前清洗与发布（含发布命令的三个陷阱）
